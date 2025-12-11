@@ -4,6 +4,24 @@ from qt import QtWidgets, QtCore, QtGui, run_app
 from pid import PIDController
 
 
+class ResizableGraphicsView(QtWidgets.QGraphicsView):
+    """QGraphicsView that scales scene to fit while maintaining aspect ratio."""
+
+    def __init__(self, scene):
+        super().__init__(scene)
+
+    def resizeEvent(self, event):
+        """Handle resize events by fitting the scene in view."""
+        super().resizeEvent(event)
+        # Fit the scene in the view while maintaining aspect ratio
+        try:
+            # Try Qt6 style first
+            self.fitInView(self.sceneRect(), QtCore.Qt.AspectRatioMode.KeepAspectRatio)
+        except AttributeError:
+            # Fall back to Qt5 style
+            self.fitInView(self.sceneRect(), QtCore.Qt.KeepAspectRatio)
+
+
 class Hand:
     """Represents an animated clock hand with PID-based velocity and acceleration."""
 
@@ -176,14 +194,14 @@ class Clock(QtWidgets.QWidget):
 
         # Create scene and view
         self.scene = QtWidgets.QGraphicsScene()
-        self.view = QtWidgets.QGraphicsView(self.scene)
+        self.view = ResizableGraphicsView(self.scene)
         # Handle Qt5/Qt6 differences for antialiasing
         try:
             self.view.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
         except AttributeError:
             self.view.setRenderHint(QtGui.QPainter.Antialiasing)
-        self.view.setFixedSize(face_width, face_height)
         self.view.setSceneRect(0, 0, face_width, face_height)
+        self.view.setMinimumSize(400, 400)
 
         # Disable scroll bars
         try:
