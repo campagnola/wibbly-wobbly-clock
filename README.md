@@ -24,5 +24,7 @@ clock.second.set_velocity(100)
 
 # move the minute hand to 120 deg from noon at a top speed of 500 deg/s
 clock.minute.set_target(120, 500)
+
+run_app()
 ```
 
