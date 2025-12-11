@@ -127,9 +127,11 @@ class Hand:
 
 
 class ClockGUI(QtWidgets.QWidget):
-    def __init__(self):
+    def __init__(self, enable_plotting=False):
         super().__init__()
         self.setWindowTitle("Clock")
+        self.enable_plotting = enable_plotting
+        self.plot = None
 
         # Load clock face and determine window size
         clock_face = QtGui.QPixmap('clock_face.png')
@@ -193,6 +195,16 @@ class ClockGUI(QtWidgets.QWidget):
         self.view.setFixedSize(face_width, face_height)
         self.view.setSceneRect(0, 0, face_width, face_height)
 
+        # Disable scroll bars
+        try:
+            # Try Qt6 style first
+            self.view.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            self.view.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        except AttributeError:
+            # Fall back to Qt5 style
+            self.view.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+            self.view.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.view)
         self.setLayout(layout)
@@ -231,6 +243,43 @@ class ClockGUI(QtWidgets.QWidget):
         self.timer.timeout.connect(self._update_animation)
         self.timer.start(16)  # ~60 FPS
 
+        # Set up plotting if enabled
+        if self.enable_plotting:
+            from scrolling_plot import ScrollingPlot
+            plot_names = ['Position', 'Velocity', 'Acceleration']
+            # Different curves for each plot
+            curve_names = {
+                'Position': ['Hour', 'Minute', 'Second', 'Hour Target', 'Minute Target', 'Second Target'],
+                'Velocity': ['Hour', 'Minute', 'Second', 'Hour Target', 'Minute Target', 'Second Target'],
+                'Acceleration': ['Hour', 'Minute', 'Second']
+            }
+            # Define colors: dark for actual values, light for targets
+            colors = {
+                'Position': {
+                    'Hour': (200, 50, 50),
+                    'Hour Target': (255, 150, 150),
+                    'Minute': (0, 150, 0),
+                    'Minute Target': (150, 255, 150),
+                    'Second': (50, 50, 200),
+                    'Second Target': (150, 150, 255)
+                },
+                'Velocity': {
+                    'Hour': (200, 50, 50),
+                    'Hour Target': (255, 150, 150),
+                    'Minute': (0, 150, 0),
+                    'Minute Target': (150, 255, 150),
+                    'Second': (50, 50, 200),
+                    'Second Target': (150, 150, 255)
+                },
+                'Acceleration': {
+                    'Hour': (200, 50, 50),
+                    'Minute': (0, 150, 0),
+                    'Second': (50, 50, 200)
+                }
+            }
+            self.plot = ScrollingPlot(plot_names, curve_names, max_samples=1000, update_interval=0.2, colors=colors)
+            self.plot.show()
+
     def _update_animation(self):
         """Called by timer to update hand positions."""
         current_time = time.perf_counter()
@@ -241,16 +290,46 @@ class ClockGUI(QtWidgets.QWidget):
         self.minute.update(dt)
         self.second.update(dt)
 
+        # Update plot if enabled
+        if self.enable_plotting and self.plot is not None:
+            values = {
+                'Position': {
+                    'Hour': self.hour.angle,
+                    'Minute': self.minute.angle,
+                    'Second': self.second.angle,
+                    'Hour Target': self.hour.target_angle if self.hour.target_angle is not None else self.hour.angle,
+                    'Minute Target': self.minute.target_angle if self.minute.target_angle is not None else self.minute.angle,
+                    'Second Target': self.second.target_angle if self.second.target_angle is not None else self.second.angle
+                },
+                'Velocity': {
+                    'Hour': self.hour.velocity,
+                    'Minute': self.minute.velocity,
+                    'Second': self.second.velocity,
+                    'Hour Target': self.hour.target_velocity,
+                    'Minute Target': self.minute.target_velocity,
+                    'Second Target': self.second.target_velocity
+                },
+                'Acceleration': {
+                    'Hour': self.hour.acceleration,
+                    'Minute': self.minute.acceleration,
+                    'Second': self.second.acceleration
+                }
+            }
+            self.plot.add_sample(values)
+
 
 if __name__ == '__main__':
     import sys
     app = QtWidgets.QApplication(sys.argv)
-    clock = ClockGUI()
+
+    # Create clock with optional plotting enabled
+    clock = ClockGUI(enable_plotting=True)
     clock.show()
 
-    clock.second.set_target(360*3)
-    clock.minute.set_target(180, speed=300)
-    clock.hour.set_target(30, speed=50)
+    # Set targets for all hands
+    clock.second.set_target(360*3)  # 3 full rotations
+    clock.minute.set_target(180, speed=300)  # Half rotation
+    clock.hour.set_target(30, speed=50)  # 1/12 rotation
 
     if sys.flags.interactive != 1:
         if hasattr(app, 'exec_'):
