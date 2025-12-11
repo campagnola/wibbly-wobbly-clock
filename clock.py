@@ -220,6 +220,26 @@ class Clock(QtWidgets.QWidget):
         second_item.setPos(self.face_center[0] - self.second_center[0],
                            self.face_center[1] - self.second_center[1])
 
+        # Add drop shadows to hands based on their height from clock face
+        # Hour hand is closest, second hand is farthest
+        hour_shadow = QtWidgets.QGraphicsDropShadowEffect()
+        hour_shadow.setBlurRadius(8)
+        hour_shadow.setOffset(3, 3)
+        hour_shadow.setColor(QtGui.QColor(0, 0, 0, 120))
+        hour_item.setGraphicsEffect(hour_shadow)
+
+        minute_shadow = QtWidgets.QGraphicsDropShadowEffect()
+        minute_shadow.setBlurRadius(12)
+        minute_shadow.setOffset(5, 5)
+        minute_shadow.setColor(QtGui.QColor(0, 0, 0, 140))
+        minute_item.setGraphicsEffect(minute_shadow)
+
+        second_shadow = QtWidgets.QGraphicsDropShadowEffect()
+        second_shadow.setBlurRadius(16)
+        second_shadow.setOffset(7, 7)
+        second_shadow.setColor(QtGui.QColor(0, 0, 0, 160))
+        second_item.setGraphicsEffect(second_shadow)
+
         # Create Hand instances
         self.hour = Hand(hour_item)
         self.minute = Hand(minute_item)
