@@ -1,6 +1,5 @@
 import sys
 import time
-import math
 import importlib
 for qt_lib in ('PyQt5', 'PySide2', 'PyQt6', 'PySide6', None):
     if qt_lib is None:
@@ -12,84 +11,7 @@ for qt_lib in ('PyQt5', 'PySide2', 'PyQt6', 'PySide6', None):
         break
     except ImportError:
         pass
-
-
-class PIDController:
-    """Generic PID controller implementation with exponential integral averaging."""
-
-    def __init__(self, kp=1.0, ki=0.0, kd=0.0, output_limits=None, integral_time_constant=1.0):
-        """Initialize PID controller.
-
-        Args:
-            kp: Proportional gain
-            ki: Integral gain
-            kd: Derivative gain
-            output_limits: Tuple of (min, max) output limits, or None for unlimited
-            integral_time_constant: Time constant for exponential integral decay (seconds)
-        """
-        self.kp = kp
-        self.ki = ki
-        self.kd = kd
-        self.output_limits = output_limits
-        self.integral_time_constant = integral_time_constant
-
-        self.integral = 0.0
-        self.last_error = 0.0
-        self.last_terms = (0.0, 0.0, 0.0)  # (P, I, D)
-        self.last_output = 0.0
-
-    def update(self, setpoint, measured_value, dt):
-        """Update the PID controller.
-
-        Args:
-            setpoint: Desired value
-            measured_value: Current measured value
-            dt: Time step in seconds
-
-        Returns:
-            Control output
-        """
-        if dt <= 0:
-            return 0.0
-
-        # Calculate error
-        error = setpoint - measured_value
-
-        # Proportional term
-        p_term = self.kp * error
-
-        # Integral term with exponential decay
-        # Decay old integral and add new error contribution
-        decay = math.exp(-dt / self.integral_time_constant)
-        self.integral = self.integral * decay + error * dt
-        i_term = self.ki * self.integral
-
-        # Derivative term
-        d_term = self.kd * (error - self.last_error) / dt
-        self.last_error = error
-
-        # Calculate output
-        output = p_term + i_term + d_term
-        self.last_terms = (p_term, i_term, d_term)
-        self.last_output = output
-
-        # Apply output limits
-        if self.output_limits is not None:
-            output = max(self.output_limits[0], min(output, self.output_limits[1]))
-
-        return output
-
-    def reset(self):
-        """Reset the controller state."""
-        self.integral = 0.0
-        self.last_error = 0.0
-
-    def state_str(self):
-        return (
-            f"KP={self.kp:0.1f}, KI={self.ki:0.1f}, KD={self.kd:0.1f}, Integral={self.integral:0.1f}, "
-            f"error={self.last_error:0.1f}, output={self.last_output:0.1f}, "
-            f"terms(P,I,D)={self.last_terms[0]:0.1f},{self.last_terms[1]:0.1f},{self.last_terms[2]:0.1f}"
-        )
+from pid import PIDController
 
 
 class Hand:
@@ -111,7 +33,6 @@ class Hand:
         self.max_acceleration = max_acceleration
 
         # Target motion tracking
-        self.motion_mode = 'speed'  # 'speed' or 'target'
         self.target_angle = None
         self.target_velocity = 0.0
 
@@ -144,7 +65,6 @@ class Hand:
         self.angle = angle
         self.velocity = 0.0
         self.target_velocity = 0.0
-        self.motion_mode = 'speed'
         self.target_angle = None
         self.velocity_pid.reset()
         self.position_pid.reset()
@@ -157,7 +77,6 @@ class Hand:
             speed: Target angular velocity in degrees/s
         """
         self.target_velocity = max(-self.max_speed, min(speed, self.max_speed))
-        self.motion_mode = 'speed'
         self.target_angle = None
         self.position_pid.reset()
 
@@ -168,7 +87,6 @@ class Hand:
             angle: Target angle in degrees (unbounded - e.g., 3600 = 10 full rotations)
             speed: Maximum cruise speed in degrees/s (optional, uses max_speed if not provided)
         """
-        self.motion_mode = 'target'
         self.target_angle = angle
 
         if speed is not None:
@@ -190,25 +108,8 @@ class Hand:
         self.angle += self.velocity * dt
 
         # Step 2: Determine target velocity
-        if self.motion_mode == 'target' and self.target_angle is not None:
-            # Outer PID: calculate target velocity to reach target angle
-            # Direct error calculation (no shortest path - support multi-rotation)
-            error = self.target_angle - self.angle
-
-            # Use position PID to determine target velocity
+        if self.target_angle is not None:
             self.target_velocity = self.position_pid.update(self.target_angle, self.angle, dt)
-
-            # Check if we've reached the target
-            # if abs(error) < 0.1 and abs(self.velocity) < 1.0:
-            #     self.angle = self.target_angle
-            #     self.velocity = 0.0
-            #     self.target_velocity = 0.0
-            #     self.motion_mode = 'speed'
-            #     self.target_angle = None
-            #     self.velocity_pid.reset()
-            #     self.position_pid.reset()
-            #     self._update_rotation()
-            #     return
 
         # Step 3: Inner PID: apply acceleration to achieve target velocity
         self.acceleration = self.velocity_pid.update(self.target_velocity, self.velocity, dt)
@@ -340,85 +241,16 @@ class ClockGUI(QtWidgets.QWidget):
         self.minute.update(dt)
         self.second.update(dt)
 
-    def set_hand_angles(self, hour=None, minute=None, second=None):
-        """Set the angles of the clock hands immediately.
-
-        Args:
-            hour: Angle for hour hand (0-360 degrees, 0 is at 12 o'clock, clockwise)
-            minute: Angle for minute hand (0-360 degrees, 0 is at 12 o'clock, clockwise)
-            second: Angle for second hand (0-360 degrees, 0 is at 12 o'clock, clockwise)
-        """
-        if hour is not None:
-            self.hour.set_angle(hour)
-        if minute is not None:
-            self.minute.set_angle(minute)
-        if second is not None:
-            self.second.set_angle(second)
-
-    def set_hand_speeds(self, hour=None, minute=None, second=None):
-        """Set the angular velocities of the clock hands.
-
-        Args:
-            hour: Angular velocity for hour hand in degrees/s
-            minute: Angular velocity for minute hand in degrees/s
-            second: Angular velocity for second hand in degrees/s
-        """
-        if hour is not None:
-            self.hour.set_speed(hour)
-        if minute is not None:
-            self.minute.set_speed(minute)
-        if second is not None:
-            self.second.set_speed(second)
-
-    def set_hand_targets(self, hour=None, minute=None, second=None, speed=None):
-        """Move hands to target angles with PID control.
-
-        Args:
-            hour: Target angle for hour hand (0-360 degrees, 0 is at 12 o'clock, clockwise)
-            minute: Target angle for minute hand (0-360 degrees, 0 is at 12 o'clock, clockwise)
-            second: Target angle for second hand (0-360 degrees, 0 is at 12 o'clock, clockwise)
-            speed: Maximum cruise speed in degrees/s (optional, uses hand's max_speed if not provided)
-        """
-        if hour is not None:
-            self.hour.set_target(hour, speed)
-        if minute is not None:
-            self.minute.set_target(minute, speed)
-        if second is not None:
-            self.second.set_target(second, speed)
-
 
 if __name__ == '__main__':
     import sys
     app = QtWidgets.QApplication(sys.argv)
     clock = ClockGUI()
-
-    # Example: Set initial angles
-    clock.set_hand_angles(hour=0, minute=0, second=0)
     clock.show()
 
-    # Example 1: Continuous rotation at different speeds
-    # clock.set_hand_speeds(hour=5, minute=60, second=360)
-
-    # Example 2: Move to target angles with PID control
-    # Move all hands to 3 o'clock position (90 degrees)
-    # clock.set_hand_targets(hour=90, minute=90, second=90, speed=360)
-
-    # Example 3: Multi-rotation - second hand does 10 full rotations
-    # clock.second.set_target(540, speed=720)  # 3600 degrees = 10 rotations
-
-    # clock.second.set_speed(720)
-    # QtCore.QTimer.singleShot(3000, lambda: clock.second.set_speed(-720))
     clock.second.set_target(360*3)
     clock.minute.set_target(180, speed=300)
     clock.hour.set_target(30, speed=50)
-
-    def show_state():
-        print(f"second state: angle={clock.second.angle:0.1f}, velocity={clock.second.velocity:0.1f}, target_velocity={clock.second.target_velocity:0.1f}, acceleration={clock.second.acceleration:0.1f}")
-        print(f"  speed PID: {clock.second.velocity_pid.state_str()}")
-        print(f"  position PID: {clock.second.position_pid.state_str()}")
-    timer = QtCore.QTimer()
-    timer.timeout.connect(show_state)
-    timer.start(500)
 
     if sys.flags.interactive != 1:
         if hasattr(app, 'exec_'):
