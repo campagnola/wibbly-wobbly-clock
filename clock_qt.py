@@ -128,9 +128,9 @@ class Hand:
         # Outer PID: controls target velocity to reach target position
         # Output is velocity command
         self.position_pid = PIDController(
-            kp=24.0,
+            kp=10.0,
             ki=0.0,
-            kd=8.0,
+            kd=2.67,
             output_limits=(-max_speed, max_speed),
             integral_time_constant=1.0
         )
@@ -409,6 +409,8 @@ if __name__ == '__main__':
     # clock.second.set_speed(720)
     # QtCore.QTimer.singleShot(3000, lambda: clock.second.set_speed(-720))
     clock.second.set_target(360*3)
+    clock.minute.set_target(180, speed=300)
+    clock.hour.set_target(30, speed=50)
 
     def show_state():
         print(f"second state: angle={clock.second.angle:0.1f}, velocity={clock.second.velocity:0.1f}, target_velocity={clock.second.target_velocity:0.1f}, acceleration={clock.second.acceleration:0.1f}")
