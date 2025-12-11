@@ -202,6 +202,7 @@ class Clock(QtWidgets.QWidget):
             self.view.setRenderHint(QtGui.QPainter.Antialiasing)
         self.view.setSceneRect(0, 0, face_width, face_height)
         self.view.setMinimumSize(400, 400)
+        self.resize(face_width, face_height)
 
         # Disable scroll bars
         try:
