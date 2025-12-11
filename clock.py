@@ -219,12 +219,26 @@ class Clock(QtWidgets.QWidget):
         self.setLayout(layout)
 
         # Add clock face to scene
-        self.scene.addPixmap(clock_face)
+        clock_face_item = self.scene.addPixmap(clock_face)
 
         # Create pixmap items for hands
         hour_item = self.scene.addPixmap(self.hour_hand)
         minute_item = self.scene.addPixmap(self.minute_hand)
         second_item = self.scene.addPixmap(self.second_hand)
+
+        # Enable smooth (antialiased) transformations for rotation and scaling
+        try:
+            # Try Qt6 style first
+            clock_face_item.setTransformationMode(QtCore.Qt.TransformationMode.SmoothTransformation)
+            hour_item.setTransformationMode(QtCore.Qt.TransformationMode.SmoothTransformation)
+            minute_item.setTransformationMode(QtCore.Qt.TransformationMode.SmoothTransformation)
+            second_item.setTransformationMode(QtCore.Qt.TransformationMode.SmoothTransformation)
+        except AttributeError:
+            # Fall back to Qt5 style
+            clock_face_item.setTransformationMode(QtCore.Qt.SmoothTransformation)
+            hour_item.setTransformationMode(QtCore.Qt.SmoothTransformation)
+            minute_item.setTransformationMode(QtCore.Qt.SmoothTransformation)
+            second_item.setTransformationMode(QtCore.Qt.SmoothTransformation)
 
         # Set transform origins (rotation centers) for each hand
         hour_item.setTransformOriginPoint(self.hour_center[0], self.hour_center[1])
