@@ -9,4 +9,20 @@ You'll need:
 - PyQt6
 - pyqtgraph
 
-try running realclock.py for example.
+Try running realclock.py for a demo.
+
+Basic usage:
+
+```
+from clock import Clock
+from qt import run_app
+clock = Clock()
+clock.show()
+
+# move the second hand continuously at 100 deg/s
+clock.second.set_velocity(100)
+
+# move the minute hand to 120 deg from noon at a top speed of 500 deg/s
+clock.minute.set_target(120, 500)
+```
+
