@@ -1,16 +1,6 @@
 import sys
 import time
-import importlib
-for qt_lib in ('PyQt5', 'PySide2', 'PyQt6', 'PySide6', None):
-    if qt_lib is None:
-        raise ImportError("No suitable Qt library found.")
-    try:
-        QtWidgets = importlib.import_module(qt_lib + '.QtWidgets')
-        QtCore = importlib.import_module(qt_lib + '.QtCore')
-        QtGui = importlib.import_module(qt_lib + '.QtGui')
-        break
-    except ImportError:
-        pass
+from qt import QtWidgets, QtCore, QtGui, run_app
 from pid import PIDController
 
 
@@ -126,7 +116,7 @@ class Hand:
         self.item.setRotation(self.angle - 90)
 
 
-class ClockGUI(QtWidgets.QWidget):
+class Clock(QtWidgets.QWidget):
     def __init__(self, enable_plotting=False):
         super().__init__()
         self.setWindowTitle("Clock")
@@ -323,7 +313,7 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
 
     # Create clock with optional plotting enabled
-    clock = ClockGUI(enable_plotting=True)
+    clock = Clock(enable_plotting=True)
     clock.show()
 
     # Set targets for all hands
@@ -331,8 +321,4 @@ if __name__ == '__main__':
     clock.minute.set_target(180, speed=300)  # Half rotation
     clock.hour.set_target(30, speed=50)  # 1/12 rotation
 
-    if sys.flags.interactive != 1:
-        if hasattr(app, 'exec_'):
-            sys.exit(app.exec_())
-        else:
-            sys.exit(app.exec())
+    run_app()
