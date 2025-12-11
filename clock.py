@@ -25,7 +25,7 @@ class ResizableGraphicsView(QtWidgets.QGraphicsView):
 class Hand:
     """Represents an animated clock hand with PID-based velocity and acceleration."""
 
-    def __init__(self, pixmap_item, max_speed=720.0, max_acceleration=1000.0):
+    def __init__(self, pixmap_item, max_speed=720.0, max_acceleration=5000.0):
         """Initialize a hand.
 
         Args:
@@ -57,9 +57,9 @@ class Hand:
         # Outer PID: controls target velocity to reach target position
         # Output is velocity command
         self.position_pid = PIDController(
-            kp=10.0,
+            kp=100.0,
             ki=0.0,
-            kd=2.67,
+            kd=5.0,
             output_limits=(-max_speed, max_speed),
             integral_time_constant=1.0
         )
@@ -281,10 +281,10 @@ class Clock(QtWidgets.QWidget):
         # Track time for accurate dt calculation
         self.last_update_time = time.perf_counter()
 
-        # Set up animation timer (60 FPS)
+        # Set up animation timer
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self._update_animation)
-        self.timer.start(16)  # ~60 FPS
+        self.timer.start(3)
 
         # Set up plotting if enabled
         if self.enable_plotting:
@@ -365,8 +365,7 @@ if __name__ == '__main__':
     import sys
     app = QtWidgets.QApplication(sys.argv)
 
-    # Create clock with optional plotting enabled
-    clock = Clock(enable_plotting=True)
+    clock = Clock(enable_plotting=False)
     clock.show()
 
     # Set targets for all hands
